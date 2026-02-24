@@ -14,7 +14,7 @@ import javax.annotation.Nonnull;
 import java.util.UUID;
 
 /**
- * VirtualTale - A Game Boy emulator rendered on Hytale's world map.
+ * VirtualTale - A Game Boy / GBA emulator rendered on Hytale's world map.
  * Each player gets their own emulator instance. The display is streamed
  * as map chunks, and input is captured via hotbar key presses (1-8).
  */
@@ -89,7 +89,7 @@ public class VirtualTalePlugin extends JavaPlugin {
     private void printBanner() {
         LOGGER.atInfo().log("");
         LOGGER.atInfo().log("╔══════════════════════════════════════════════════╗");
-        LOGGER.atInfo().log("║           VIRTUAL TALE - Game Boy on Map         ║");
+        LOGGER.atInfo().log("║         VIRTUAL TALE - Game Boy / GBA on Map      ║");
         LOGGER.atInfo().log("║           /vt start <rom> to play!               ║");
         LOGGER.atInfo().log("╚══════════════════════════════════════════════════╝");
         LOGGER.atInfo().log("");

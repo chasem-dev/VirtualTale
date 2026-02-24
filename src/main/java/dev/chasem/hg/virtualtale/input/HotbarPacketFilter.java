@@ -8,9 +8,9 @@ import com.hypixel.hytale.protocol.packets.interaction.SyncInteractionChains;
 import com.hypixel.hytale.protocol.packets.inventory.SetActiveSlot;
 import com.hypixel.hytale.server.core.io.adapter.PlayerPacketFilter;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import dev.chasem.hg.virtualtale.emulator.EmulatorButton;
 import dev.chasem.hg.virtualtale.emulator.EmulatorSession;
 import dev.chasem.hg.virtualtale.emulator.EmulatorSessionManager;
-import eu.rekawek.coffeegb.controller.Button;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Packet filter that intercepts hotbar key presses (1-8) and maps them to
- * Game Boy buttons for players with active VirtualTale sessions.
+ * emulator buttons for players with active VirtualTale sessions.
  *
  * Mapping:
  *   Key 1 (slot 0) -> UP       Key 5 (slot 4) -> A
@@ -57,7 +57,7 @@ public class HotbarPacketFilter implements PlayerPacketFilter {
      * Per-player, per-button pending release future. While a release is pending,
      * duplicate presses for that button are ignored (debounce).
      */
-    private final ConcurrentHashMap<UUID, ConcurrentHashMap<Button, ScheduledFuture<?>>> pendingReleases =
+    private final ConcurrentHashMap<UUID, ConcurrentHashMap<EmulatorButton, ScheduledFuture<?>>> pendingReleases =
             new ConcurrentHashMap<>();
 
     private final ScheduledExecutorService releaseScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -105,7 +105,7 @@ public class HotbarPacketFilter implements PlayerPacketFilter {
                     && chain.initial) {
 
                 int targetSlot = chain.data.targetSlot;
-                Button button = mapSlotToButton(targetSlot);
+                EmulatorButton button = mapSlotToButton(targetSlot);
 
                 LOGGER.atInfo().log("[VT-DBG]   -> SwapFrom match: slot=%d button=%s", targetSlot, button);
 
@@ -125,9 +125,9 @@ public class HotbarPacketFilter implements PlayerPacketFilter {
      * button is pressed and a release is scheduled after the hold duration.
      * The active hotbar slot is then forced back to the neutral slot (9).
      */
-    private void handleButtonPress(@Nonnull PlayerRef playerRef, @Nonnull EmulatorSession session, @Nonnull Button button) {
+    private void handleButtonPress(@Nonnull PlayerRef playerRef, @Nonnull EmulatorSession session, @Nonnull EmulatorButton button) {
         UUID playerId = playerRef.getUuid();
-        ConcurrentHashMap<Button, ScheduledFuture<?>> playerReleases =
+        ConcurrentHashMap<EmulatorButton, ScheduledFuture<?>> playerReleases =
                 pendingReleases.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>());
 
         ScheduledFuture<?> existingRelease = playerReleases.get(button);
@@ -139,12 +139,12 @@ public class HotbarPacketFilter implements PlayerPacketFilter {
 
         // Press the button
         LOGGER.atInfo().log("[VT-DBG] >>> PRESS %s -> emulator for %s", button, playerId);
-        session.getGameboy().pressButton(button);
+        session.getBackend().pressButton(button);
 
         // Schedule release
         ScheduledFuture<?> releaseFuture = releaseScheduler.schedule(() -> {
             LOGGER.atInfo().log("[VT-DBG] <<< RELEASE %s -> emulator for %s", button, playerId);
-            session.getGameboy().releaseButton(button);
+            session.getBackend().releaseButton(button);
             playerReleases.remove(button);
         }, buttonHoldMs, TimeUnit.MILLISECONDS);
         playerReleases.put(button, releaseFuture);
@@ -161,7 +161,7 @@ public class HotbarPacketFilter implements PlayerPacketFilter {
      * Cleans up debounce state for a player (call when session stops).
      */
     public void clearPlayer(@Nonnull UUID playerId) {
-        ConcurrentHashMap<Button, ScheduledFuture<?>> playerReleases = pendingReleases.remove(playerId);
+        ConcurrentHashMap<EmulatorButton, ScheduledFuture<?>> playerReleases = pendingReleases.remove(playerId);
         if (playerReleases != null) {
             playerReleases.values().forEach(f -> f.cancel(false));
         }
@@ -176,20 +176,20 @@ public class HotbarPacketFilter implements PlayerPacketFilter {
     }
 
     /**
-     * Maps a hotbar slot (0-indexed) to a Game Boy button.
+     * Maps a hotbar slot (0-indexed) to an emulator button.
      * Slots 0-7 map to UP, DOWN, LEFT, RIGHT, A, B, START, SELECT.
      */
     @Nullable
-    private static Button mapSlotToButton(int slot) {
+    private static EmulatorButton mapSlotToButton(int slot) {
         return switch (slot) {
-            case 0 -> Button.UP;
-            case 1 -> Button.DOWN;
-            case 2 -> Button.LEFT;
-            case 3 -> Button.RIGHT;
-            case 4 -> Button.A;
-            case 5 -> Button.B;
-            case 6 -> Button.START;
-            case 7 -> Button.SELECT;
+            case 0 -> EmulatorButton.UP;
+            case 1 -> EmulatorButton.DOWN;
+            case 2 -> EmulatorButton.LEFT;
+            case 3 -> EmulatorButton.RIGHT;
+            case 4 -> EmulatorButton.A;
+            case 5 -> EmulatorButton.B;
+            case 6 -> EmulatorButton.START;
+            case 7 -> EmulatorButton.SELECT;
             default -> null;
         };
     }

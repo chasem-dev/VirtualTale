@@ -31,6 +31,9 @@ dependencies {
     // coffee-gb (headless Game Boy emulator)
     implementation("com.github.trekawek:coffee-gb:coffee-gb-1.5.1")
 
+    // BooYahGBA (headless GBA emulator)
+    implementation("com.github.chasem-dev:BooYahGBA:master-SNAPSHOT")
+
     // Hytale Server API
     compileOnly(libs.hytale.server)
 

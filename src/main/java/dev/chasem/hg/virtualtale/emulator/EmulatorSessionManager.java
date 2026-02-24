@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages all active emulator sessions. Each player can have at most one session.
+ * Automatically selects the correct backend (Game Boy or GBA) based on ROM type.
  */
 public class EmulatorSessionManager {
 
@@ -29,6 +30,7 @@ public class EmulatorSessionManager {
 
     /**
      * Starts a new emulator session for a player.
+     * The backend is automatically selected based on the ROM file extension.
      *
      * @param playerId  the player's UUID
      * @param playerRef the player's reference for sending packets
@@ -52,10 +54,31 @@ public class EmulatorSessionManager {
             throw new IOException("ROM not found: " + romName);
         }
 
+        RomType romType = RomType.detect(romFile);
+        if (romType == null) {
+            throw new IOException("Unrecognized ROM type: " + romName
+                    + ". Supported: .gb, .gbc, .gba, .agb");
+        }
+
+        // Create the appropriately-sized frame buffer
+        FrameBuffer frameBuffer = new FrameBuffer(romType.getWidth(), romType.getHeight());
+
+        // Create the appropriate backend
+        EmulatorBackend backend;
+        switch (romType) {
+            case GAMEBOY -> backend = new HeadlessGameboy(romFile, frameBuffer);
+            case GBA -> {
+                File biosFile = config.getGbaBiosFile();
+                backend = new HeadlessGba(romFile, biosFile, frameBuffer);
+            }
+            default -> throw new IOException("Unsupported ROM type: " + romType);
+        }
+
         EmulatorSession session = new EmulatorSession(
                 playerId,
                 playerRef,
-                romFile,
+                backend,
+                frameBuffer,
                 config.getAnchorX(),
                 config.getAnchorZ(),
                 config.getMapScale()
@@ -63,7 +86,7 @@ public class EmulatorSessionManager {
 
         session.start(config.getRenderFps());
         sessions.put(playerId, session);
-        LOGGER.atInfo().log("[VT] Started session for %s with ROM: %s", playerId, romName);
+        LOGGER.atInfo().log("[VT] Started %s session for %s with ROM: %s", romType, playerId, romName);
         return session;
     }
 
@@ -107,6 +130,7 @@ public class EmulatorSessionManager {
 
     /**
      * Lists available ROM files in the configured directory.
+     * Includes .gb, .gbc, .gba, and .agb files.
      */
     @Nonnull
     public List<String> listAvailableRoms() {
@@ -118,7 +142,8 @@ public class EmulatorSessionManager {
         try (var stream = Files.list(romDir)) {
             stream.filter(p -> {
                         String name = p.getFileName().toString().toLowerCase();
-                        return name.endsWith(".gb") || name.endsWith(".gbc");
+                        return name.endsWith(".gb") || name.endsWith(".gbc")
+                                || name.endsWith(".gba") || name.endsWith(".agb");
                     })
                     .forEach(p -> roms.add(p.getFileName().toString()));
         } catch (IOException e) {
@@ -129,7 +154,7 @@ public class EmulatorSessionManager {
 
     /**
      * Resolves a ROM name to a file. Tries exact match first, then
-     * searches for files starting with the name (case-insensitive).
+     * with extensions, then case-insensitive prefix search.
      */
     @Nullable
     private File resolveRom(@Nonnull String romName) {
@@ -141,16 +166,12 @@ public class EmulatorSessionManager {
             return exact.toFile();
         }
 
-        // Try with .gb extension
-        Path withGb = romDir.resolve(romName + ".gb");
-        if (Files.exists(withGb)) {
-            return withGb.toFile();
-        }
-
-        // Try with .gbc extension
-        Path withGbc = romDir.resolve(romName + ".gbc");
-        if (Files.exists(withGbc)) {
-            return withGbc.toFile();
+        // Try with common extensions
+        for (String ext : new String[]{".gb", ".gbc", ".gba", ".agb"}) {
+            Path withExt = romDir.resolve(romName + ext);
+            if (Files.exists(withExt)) {
+                return withExt.toFile();
+            }
         }
 
         // Case-insensitive prefix search

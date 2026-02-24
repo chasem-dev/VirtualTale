@@ -8,7 +8,6 @@ import dev.chasem.hg.virtualtale.display.ColorMapper;
 import dev.chasem.hg.virtualtale.display.MapDisplayRenderer;
 
 import javax.annotation.Nonnull;
-import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -17,8 +16,10 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Per-player session that ties together an emulator instance, a frame buffer,
+ * Per-player session that ties together an emulator backend, a frame buffer,
  * a map renderer, and a scheduled render loop that pushes frames to the player.
+ *
+ * Works with any {@link EmulatorBackend} (Game Boy, GBA, etc.).
  */
 public class EmulatorSession {
 
@@ -26,7 +27,7 @@ public class EmulatorSession {
 
     private final UUID playerId;
     private final PlayerRef playerRef;
-    private final HeadlessGameboy gameboy;
+    private final EmulatorBackend backend;
     private final FrameBuffer frameBuffer;
     private final MapDisplayRenderer renderer;
     private final ScheduledExecutorService renderScheduler;
@@ -35,27 +36,33 @@ public class EmulatorSession {
     private long lastFrameCount = -1;
 
     // Reusable frame buffers (avoid allocation per frame)
-    private final int[] readBuffer = new int[FrameBuffer.PIXEL_COUNT];
-    private final int[] rgbaBuffer = new int[FrameBuffer.PIXEL_COUNT];
+    private final int[] readBuffer;
+    private final int[] rgbaBuffer;
 
     public EmulatorSession(
             @Nonnull UUID playerId,
             @Nonnull PlayerRef playerRef,
-            @Nonnull File romFile,
+            @Nonnull EmulatorBackend backend,
+            @Nonnull FrameBuffer frameBuffer,
             double playerWorldX,
             double playerWorldZ,
             int mapScale
     ) {
         this.playerId = playerId;
         this.playerRef = playerRef;
-        this.frameBuffer = new FrameBuffer();
-        this.gameboy = new HeadlessGameboy(romFile, frameBuffer);
-        this.renderer = new MapDisplayRenderer(playerWorldX, playerWorldZ, mapScale);
+        this.backend = backend;
+        this.frameBuffer = frameBuffer;
+        this.renderer = new MapDisplayRenderer(playerWorldX, playerWorldZ, mapScale,
+                backend.getDisplayWidth(), backend.getDisplayHeight());
         this.renderScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "VT-Render-" + playerId.toString().substring(0, 8));
             t.setDaemon(true);
             return t;
         });
+
+        int pixelCount = frameBuffer.getPixelCount();
+        this.readBuffer = new int[pixelCount];
+        this.rgbaBuffer = new int[pixelCount];
     }
 
     /**
@@ -70,7 +77,7 @@ public class EmulatorSession {
             LOGGER.atWarning().log("[VT] Failed to clear map for %s: %s", playerId, e.getMessage());
         }
 
-        gameboy.start();
+        backend.start();
 
         long periodMs = 1000L / renderFps;
         renderTask = renderScheduler.scheduleAtFixedRate(
@@ -81,7 +88,7 @@ public class EmulatorSession {
         );
 
         LOGGER.atInfo().log("[VT] Session started for %s - ROM: %s, %d FPS",
-                playerId, gameboy.getRomName(), renderFps);
+                playerId, backend.getRomName(), renderFps);
     }
 
     /**
@@ -102,7 +109,7 @@ public class EmulatorSession {
             renderScheduler.shutdownNow();
             Thread.currentThread().interrupt();
         }
-        gameboy.stop();
+        backend.stop();
 
         LOGGER.atInfo().log("[VT] Session stopped for %s", playerId);
     }
@@ -121,7 +128,7 @@ public class EmulatorSession {
             lastFrameCount = newCount;
 
             // Convert RGB -> RGBA
-            ColorMapper.toRgba(readBuffer, rgbaBuffer, FrameBuffer.PIXEL_COUNT);
+            ColorMapper.toRgba(readBuffer, rgbaBuffer, frameBuffer.getPixelCount());
 
             // Render to map chunks (delta compressed)
             UpdateWorldMap packet = renderer.renderFrame(rgbaBuffer);
@@ -134,8 +141,8 @@ public class EmulatorSession {
     }
 
     @Nonnull
-    public HeadlessGameboy getGameboy() {
-        return gameboy;
+    public EmulatorBackend getBackend() {
+        return backend;
     }
 
     @Nonnull
@@ -145,10 +152,10 @@ public class EmulatorSession {
 
     @Nonnull
     public String getRomName() {
-        return gameboy.getRomName();
+        return backend.getRomName();
     }
 
     public boolean isRunning() {
-        return gameboy.isRunning();
+        return backend.isRunning();
     }
 }

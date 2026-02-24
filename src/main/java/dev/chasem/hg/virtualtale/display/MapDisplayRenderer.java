@@ -34,6 +34,10 @@ public class MapDisplayRenderer {
     public static final int GB_WIDTH = 160;
     public static final int GB_HEIGHT = 144;
 
+    /** Actual display dimensions (may differ from GB defaults for GBA). */
+    private final int displayPixelWidth;
+    private final int displayPixelHeight;
+
     /** World blocks per map chunk (fixed by Hytale). */
     public static final int CHUNK_BLOCKS = 32;
 
@@ -85,16 +89,28 @@ public class MapDisplayRenderer {
     private boolean[] paddingSent;
 
     /**
-     * @param playerWorldX player's world X position (display will be centered here)
-     * @param playerWorldZ player's world Z position (display will be centered here)
-     * @param mapScale     how many world blocks each GB pixel covers (1 = 1:1, 2 = 2x larger, etc.)
+     * Creates a renderer with Game Boy default resolution (160x144).
      */
     public MapDisplayRenderer(double playerWorldX, double playerWorldZ, int mapScale) {
+        this(playerWorldX, playerWorldZ, mapScale, GB_WIDTH, GB_HEIGHT);
+    }
+
+    /**
+     * @param playerWorldX player's world X position (display will be centered here)
+     * @param playerWorldZ player's world Z position (display will be centered here)
+     * @param mapScale     how many world blocks each pixel covers (1 = 1:1, 2 = 2x larger, etc.)
+     * @param pixelWidth   native display width in pixels (160 for GB, 240 for GBA)
+     * @param pixelHeight  native display height in pixels (144 for GB, 160 for GBA)
+     */
+    public MapDisplayRenderer(double playerWorldX, double playerWorldZ, int mapScale,
+                              int pixelWidth, int pixelHeight) {
         this.mapScale = Math.max(1, mapScale);
+        this.displayPixelWidth = pixelWidth;
+        this.displayPixelHeight = pixelHeight;
 
         // Calculate display area in world blocks
-        this.displayBlocksW = GB_WIDTH * this.mapScale;
-        this.displayBlocksH = GB_HEIGHT * this.mapScale;
+        this.displayBlocksW = pixelWidth * this.mapScale;
+        this.displayBlocksH = pixelHeight * this.mapScale;
 
         // Center display on player position
         this.displayStartX = (int) Math.round(playerWorldX) - displayBlocksW / 2;
@@ -135,10 +151,10 @@ public class MapDisplayRenderer {
     }
 
     /**
-     * Renders a Game Boy frame (160x144 RGBA pixels) to the map, returning
-     * an UpdateWorldMap packet with only the changed chunks.
+     * Renders an emulator frame to the map, returning an UpdateWorldMap
+     * packet with only the changed chunks.
      *
-     * @param rgbaPixels 160x144 RGBA pixel array (23040 ints)
+     * @param rgbaPixels RGBA pixel array (width * height ints)
      * @return packet with changed chunks, or null if nothing changed
      */
     @Nullable
@@ -159,7 +175,8 @@ public class MapDisplayRenderer {
                 if (isInner) {
                     // Display/border chunk - render full detail
                     extractChunk(rgbaPixels, chunkX, chunkZ, mapScale, chunkPixels,
-                            displayStartX, displayStartZ, displayBlocksW, displayBlocksH);
+                            displayStartX, displayStartZ, displayBlocksW, displayBlocksH,
+                            displayPixelWidth, displayPixelHeight);
 
                     int innerCol = chunkX - innerMinChunkX;
                     int innerRow = chunkZ - innerMinChunkZ;
@@ -196,27 +213,30 @@ public class MapDisplayRenderer {
     }
 
     /**
-     * Extracts the image for a single map chunk from the GB frame.
+     * Extracts the image for a single map chunk from the emulator frame.
      * Uses absolute world coordinates for the chunk position and display area.
      *
      * Rendering zones (in world block coordinates):
-     *   - Display area: [dispStartX, dispStartX+dispW) x [dispStartZ, dispStartZ+dispH) -> GB frame pixels
+     *   - Display area: [dispStartX, dispStartX+dispW) x [dispStartZ, dispStartZ+dispH) -> frame pixels
      *   - Border: [dispStartX-BORDER, dispStartX+dispW+BORDER) x ... minus display -> gray
      *   - Outside: everything else -> black
      *
-     * @param frame      the full 160x144 RGBA frame
-     * @param chunkX     absolute chunk X coordinate
-     * @param chunkZ     absolute chunk Z coordinate
-     * @param scale      world blocks per GB pixel
-     * @param dest       destination array (CHUNK_IMAGE_PIXELS ints)
-     * @param dispStartX display top-left world block X
-     * @param dispStartZ display top-left world block Z
-     * @param dispW      display width in world blocks (GB_WIDTH * scale)
-     * @param dispH      display height in world blocks (GB_HEIGHT * scale)
+     * @param frame       the full RGBA frame (pixelW * pixelH ints)
+     * @param chunkX      absolute chunk X coordinate
+     * @param chunkZ      absolute chunk Z coordinate
+     * @param scale       world blocks per emulator pixel
+     * @param dest        destination array (CHUNK_IMAGE_PIXELS ints)
+     * @param dispStartX  display top-left world block X
+     * @param dispStartZ  display top-left world block Z
+     * @param dispW       display width in world blocks (pixelW * scale)
+     * @param dispH       display height in world blocks (pixelH * scale)
+     * @param pixelW      native display width in pixels
+     * @param pixelH      native display height in pixels
      */
     static void extractChunk(@Nonnull int[] frame, int chunkX, int chunkZ,
                              int scale, @Nonnull int[] dest,
-                             int dispStartX, int dispStartZ, int dispW, int dispH) {
+                             int dispStartX, int dispStartZ, int dispW, int dispH,
+                             int pixelW, int pixelH) {
         int chunkWorldX = chunkX * CHUNK_BLOCKS;
         int chunkWorldZ = chunkZ * CHUNK_BLOCKS;
 
@@ -239,8 +259,8 @@ public class MapDisplayRenderer {
                 continue;
             }
 
-            int gbY = zInDisplay ? (worldZ - dispStartZ) / scale : -1;
-            int frameRow = (gbY >= 0 && gbY < GB_HEIGHT) ? gbY * GB_WIDTH : -1;
+            int emuY = zInDisplay ? (worldZ - dispStartZ) / scale : -1;
+            int frameRow = (emuY >= 0 && emuY < pixelH) ? emuY * pixelW : -1;
 
             for (int px = 0; px < CHUNK_IMAGE_SIZE; px++) {
                 int worldX = chunkWorldX + px / PX_PER_BLOCK;
@@ -249,10 +269,10 @@ public class MapDisplayRenderer {
                 boolean xInBorder = worldX >= borderMinX && worldX < borderMaxX;
 
                 if (zInDisplay && xInDisplay && frameRow >= 0) {
-                    // Inside display area -> GB pixel
-                    int gbX = (worldX - dispStartX) / scale;
-                    if (gbX >= 0 && gbX < GB_WIDTH) {
-                        dest[destRow + px] = frame[frameRow + gbX];
+                    // Inside display area -> emulator pixel
+                    int emuX = (worldX - dispStartX) / scale;
+                    if (emuX >= 0 && emuX < pixelW) {
+                        dest[destRow + px] = frame[frameRow + emuX];
                     } else {
                         dest[destRow + px] = BLACK;
                     }
@@ -292,4 +312,6 @@ public class MapDisplayRenderer {
     public int getMapScale() { return mapScale; }
     public int getInnerGridWidth() { return innerMaxChunkX - innerMinChunkX; }
     public int getInnerGridHeight() { return innerMaxChunkZ - innerMinChunkZ; }
+    public int getDisplayPixelWidth() { return displayPixelWidth; }
+    public int getDisplayPixelHeight() { return displayPixelHeight; }
 }

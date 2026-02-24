@@ -16,6 +16,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import dev.chasem.hg.virtualtale.VirtualTaleConfig;
 import dev.chasem.hg.virtualtale.emulator.EmulatorSession;
 import dev.chasem.hg.virtualtale.emulator.EmulatorSessionManager;
+import dev.chasem.hg.virtualtale.emulator.RomType;
 
 import javax.annotation.Nonnull;
 import java.util.Collection;
@@ -39,7 +40,7 @@ public class VirtualTaleCommand extends AbstractPlayerCommand {
     private final DefaultArg<String> romArg;
 
     public VirtualTaleCommand(@Nonnull EmulatorSessionManager sessionManager, @Nonnull VirtualTaleConfig config) {
-        super("vt", "VirtualTale Game Boy emulator");
+        super("vt", "VirtualTale emulator (Game Boy / GBA)");
         this.sessionManager = sessionManager;
         this.config = config;
         this.subcommandArg = withRequiredArg("subcommand", "start/stop/list/roms/mapscale", ArgTypes.STRING);
@@ -79,9 +80,13 @@ public class VirtualTaleCommand extends AbstractPlayerCommand {
         }
 
         try {
-            sessionManager.startSession(playerRef.getUuid(), playerRef, romName.trim());
-            playerRef.sendMessage(Message.raw("VirtualTale started! Open your map (M) to see the Game Boy display."));
+            EmulatorSession session = sessionManager.startSession(playerRef.getUuid(), playerRef, romName.trim());
+            String systemName = isGbaRom(romName) ? "GBA" : "Game Boy";
+            playerRef.sendMessage(Message.raw("VirtualTale started! (" + systemName + ") Open your map (M) to see the display."));
             playerRef.sendMessage(Message.raw("Controls: 1=UP 2=DOWN 3=LEFT 4=RIGHT 5=A 6=B 7=START 8=SELECT"));
+            if (isGbaRom(romName)) {
+                playerRef.sendMessage(Message.raw("GBA shoulder buttons are not yet mapped to hotbar keys."));
+            }
         } catch (Exception e) {
             playerRef.sendMessage(Message.raw("Failed to start: " + e.getMessage()));
             LOGGER.atWarning().log("[VT] Failed to start session for %s: %s", playerRef.getUsername(), e.getMessage());
@@ -132,7 +137,7 @@ public class VirtualTaleCommand extends AbstractPlayerCommand {
     private void handleRoms(@Nonnull PlayerRef playerRef) {
         List<String> roms = sessionManager.listAvailableRoms();
         if (roms.isEmpty()) {
-            playerRef.sendMessage(Message.raw("No ROMs found. Place .gb/.gbc files in the roms directory."));
+            playerRef.sendMessage(Message.raw("No ROMs found. Place .gb/.gbc/.gba files in the roms directory."));
             return;
         }
 
@@ -181,10 +186,15 @@ public class VirtualTaleCommand extends AbstractPlayerCommand {
 
     private void sendUsage(@Nonnull PlayerRef playerRef) {
         playerRef.sendMessage(Message.raw("Usage: /vt <subcommand> [--rom=<value>]"));
-        playerRef.sendMessage(Message.raw("  start --rom=<file>  - Start emulator (e.g. --rom=Tetris.gb)"));
+        playerRef.sendMessage(Message.raw("  start --rom=<file>  - Start emulator (e.g. --rom=Tetris.gb or --rom=Pokemon.gba)"));
         playerRef.sendMessage(Message.raw("  stop                - Stop your current session"));
         playerRef.sendMessage(Message.raw("  list                - List active sessions"));
         playerRef.sendMessage(Message.raw("  roms                - List available ROM files"));
         playerRef.sendMessage(Message.raw("  mapscale --rom=<n>  - Set display size 1-8 (default: 4)"));
+    }
+
+    private static boolean isGbaRom(@Nonnull String romName) {
+        String lower = romName.toLowerCase();
+        return lower.endsWith(".gba") || lower.endsWith(".agb");
     }
 }

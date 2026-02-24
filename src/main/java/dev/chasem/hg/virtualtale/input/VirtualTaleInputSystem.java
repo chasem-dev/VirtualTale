@@ -11,9 +11,9 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.chasem.hg.virtualtale.emulator.EmulatorButton;
 import dev.chasem.hg.virtualtale.emulator.EmulatorSession;
 import dev.chasem.hg.virtualtale.emulator.EmulatorSessionManager;
-import eu.rekawek.coffeegb.controller.Button;
 
 import javax.annotation.Nonnull;
 
@@ -21,7 +21,7 @@ import javax.annotation.Nonnull;
  * ECS tick system that detects WASD movement deltas while the player
  * is in VirtualTale mode. When movement is detected, the player is
  * teleported back to their anchor position and the direction is
- * translated to a Game Boy D-pad button press.
+ * translated to an emulator D-pad button press.
  *
  * This works while the map is open because WASD movement still
  * generates position updates on the server.
@@ -81,11 +81,11 @@ public class VirtualTaleInputSystem extends EntityTickingSystem<EntityStore> {
         }
 
         // Determine primary direction
-        Button button;
+        EmulatorButton button;
         if (Math.abs(deltaX) > Math.abs(deltaZ)) {
-            button = deltaX > 0 ? Button.RIGHT : Button.LEFT;
+            button = deltaX > 0 ? EmulatorButton.RIGHT : EmulatorButton.LEFT;
         } else {
-            button = deltaZ > 0 ? Button.DOWN : Button.UP;
+            button = deltaZ > 0 ? EmulatorButton.DOWN : EmulatorButton.UP;
         }
 
         LOGGER.atInfo().log("[VT] WASD detected: deltaX=%.2f deltaZ=%.2f -> %s (player=%s, pos=%.1f,%.1f anchor=%.1f,%.1f)",
@@ -93,7 +93,7 @@ public class VirtualTaleInputSystem extends EntityTickingSystem<EntityStore> {
                 currentX, currentZ, input.getAnchorX(), input.getAnchorZ());
 
         // Press and schedule release
-        session.getGameboy().pressButton(button);
+        session.getBackend().pressButton(button);
 
         // Teleport player back to anchor
         transform.getPosition().x = input.getAnchorX();
@@ -101,14 +101,14 @@ public class VirtualTaleInputSystem extends EntityTickingSystem<EntityStore> {
         transform.getPosition().z = input.getAnchorZ();
 
         // Schedule button release after a short hold
-        final Button pressedButton = button;
+        final EmulatorButton pressedButton = button;
         Thread.ofVirtual().name("VT-Release-" + pressedButton).start(() -> {
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            session.getGameboy().releaseButton(pressedButton);
+            session.getBackend().releaseButton(pressedButton);
         });
     }
 }

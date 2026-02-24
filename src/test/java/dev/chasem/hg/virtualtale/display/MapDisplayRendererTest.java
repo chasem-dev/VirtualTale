@@ -33,7 +33,7 @@ class MapDisplayRendererTest {
 
         int[] chunk = new int[IMG_PIXELS];
         // Chunk (0,0) covers world blocks [0,32)x[0,32). Display at (0,0) -> entire chunk is display.
-        MapDisplayRenderer.extractChunk(frame, 0, 0, 1, chunk, 0, 0, 160, 144);
+        MapDisplayRenderer.extractChunk(frame, 0, 0, 1, chunk, 0, 0, 160, 144, 160, 144);
 
         // All pixels should be red (display content)
         assertThat(chunk[idx(0, 0)]).isEqualTo(red);
@@ -49,7 +49,7 @@ class MapDisplayRendererTest {
         int[] chunk = new int[IMG_PIXELS];
         // Display starts at (5,5). Chunk (0,0) covers [0,32)x[0,32).
         // World block (0,0) is outside display [5,165) but inside border [0,170).
-        MapDisplayRenderer.extractChunk(frame, 0, 0, 1, chunk, 5, 5, 160, 144);
+        MapDisplayRenderer.extractChunk(frame, 0, 0, 1, chunk, 5, 5, 160, 144, 160, 144);
 
         // Pixel (0,0) -> world block (0,0) -> in border, outside display -> gray
         assertThat(chunk[idx(0, 0)]).isEqualTo(BORDER_COLOR);
@@ -69,7 +69,7 @@ class MapDisplayRendererTest {
         // Chunk (-2, -2) covers world blocks [-64, -32) x [-64, -32).
         // Display at (0,0), border extends [-5, 165) x [-5, 149).
         // All of chunk (-2,-2) is well outside border -> all black.
-        MapDisplayRenderer.extractChunk(frame, -2, -2, 1, chunk, 0, 0, 160, 144);
+        MapDisplayRenderer.extractChunk(frame, -2, -2, 1, chunk, 0, 0, 160, 144, 160, 144);
 
         assertThat(chunk[idx(0, 0)]).isEqualTo(BLACK);
         assertThat(chunk[idx(IMG - 1, IMG - 1)]).isEqualTo(BLACK);
@@ -86,7 +86,7 @@ class MapDisplayRendererTest {
         // Display at (0,0), border X extends [-5, 165).
         // World blocks [-32, -6) -> black (outside border)
         // World blocks [-5, 0) -> gray (in border, outside display)
-        MapDisplayRenderer.extractChunk(frame, -1, 0, 1, chunk, 0, 0, 160, 144);
+        MapDisplayRenderer.extractChunk(frame, -1, 0, 1, chunk, 0, 0, 160, 144, 160, 144);
 
         // px=0 -> worldX = -32 + 0/2 = -32 -> outside border -> black
         assertThat(chunk[idx(0, 0)]).isEqualTo(BLACK);
@@ -110,7 +110,7 @@ class MapDisplayRendererTest {
         int dispH = 144 * 2;
         int[] chunk = new int[IMG_PIXELS];
         // Chunk (0,0) covers world blocks [0,32)x[0,32). Display at (0,0).
-        MapDisplayRenderer.extractChunk(frame, 0, 0, 2, chunk, 0, 0, dispW, dispH);
+        MapDisplayRenderer.extractChunk(frame, 0, 0, 2, chunk, 0, 0, dispW, dispH, 160, 144);
 
         // px=0, py=0 -> worldX=0, worldZ=0 -> gbX=0/2=0, gbY=0/2=0
         int expected00 = (0 << 16) | (0 << 8) | 0xFF;

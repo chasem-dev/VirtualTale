@@ -11,6 +11,7 @@ import eu.rekawek.coffeegb.memory.cart.Cartridge;
 import eu.rekawek.coffeegb.serial.SerialEndpoint;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 
@@ -19,9 +20,12 @@ import java.io.IOException;
  * Runs the emulator loop on a daemon thread and captures frame output
  * into a FrameBuffer for the rendering pipeline.
  */
-public class HeadlessGameboy {
+public class HeadlessGameboy implements EmulatorBackend {
 
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
+
+    private static final int DISPLAY_WIDTH = 160;
+    private static final int DISPLAY_HEIGHT = 144;
 
     private final FrameBuffer frameBuffer;
     private final File romFile;
@@ -32,17 +36,24 @@ public class HeadlessGameboy {
     private volatile boolean running;
 
     // Temporary buffer for converting frames
-    private final int[] rgbBuffer = new int[FrameBuffer.PIXEL_COUNT];
+    private final int[] rgbBuffer = new int[DISPLAY_WIDTH * DISPLAY_HEIGHT];
 
     public HeadlessGameboy(@Nonnull File romFile, @Nonnull FrameBuffer frameBuffer) {
         this.romFile = romFile;
         this.frameBuffer = frameBuffer;
     }
 
-    /**
-     * Starts the emulator. Loads the ROM, initializes the Gameboy, registers
-     * frame listeners, and starts the emulator thread.
-     */
+    @Override
+    public int getDisplayWidth() {
+        return DISPLAY_WIDTH;
+    }
+
+    @Override
+    public int getDisplayHeight() {
+        return DISPLAY_HEIGHT;
+    }
+
+    @Override
     public void start() throws IOException {
         if (running) {
             throw new IllegalStateException("Emulator is already running");
@@ -62,16 +73,14 @@ public class HeadlessGameboy {
         gameboy.init(eventBus, SerialEndpoint.NULL_ENDPOINT, null);
 
         running = true;
-        emulatorThread = new Thread(this::runLoop, "VirtualTale-Emulator-" + romFile.getName());
+        emulatorThread = new Thread(this::runLoop, "VirtualTale-GB-" + romFile.getName());
         emulatorThread.setDaemon(true);
         emulatorThread.start();
 
-        LOGGER.atInfo().log("[VT] Emulator started for ROM: %s", romFile.getName());
+        LOGGER.atInfo().log("[VT] GB emulator started for ROM: %s", romFile.getName());
     }
 
-    /**
-     * Stops the emulator and waits for the thread to finish.
-     */
+    @Override
     public void stop() {
         running = false;
         if (gameboy != null) {
@@ -87,34 +96,49 @@ public class HeadlessGameboy {
             }
         }
         eventBus = null;
-        LOGGER.atInfo().log("[VT] Emulator stopped for ROM: %s", romFile.getName());
+        LOGGER.atInfo().log("[VT] GB emulator stopped for ROM: %s", romFile.getName());
     }
 
-    /**
-     * Presses a Game Boy button.
-     */
-    public void pressButton(@Nonnull Button button) {
-        if (eventBus != null) {
-            eventBus.post(new ButtonPressEvent(button));
+    @Override
+    public void pressButton(@Nonnull EmulatorButton button) {
+        Button gbButton = mapButton(button);
+        if (gbButton != null && eventBus != null) {
+            eventBus.post(new ButtonPressEvent(gbButton));
         }
     }
 
-    /**
-     * Releases a Game Boy button.
-     */
-    public void releaseButton(@Nonnull Button button) {
-        if (eventBus != null) {
-            eventBus.post(new ButtonReleaseEvent(button));
+    @Override
+    public void releaseButton(@Nonnull EmulatorButton button) {
+        Button gbButton = mapButton(button);
+        if (gbButton != null && eventBus != null) {
+            eventBus.post(new ButtonReleaseEvent(gbButton));
         }
     }
 
+    @Override
     public boolean isRunning() {
         return running;
     }
 
     @Nonnull
+    @Override
     public String getRomName() {
         return romFile.getName();
+    }
+
+    @Nullable
+    private static Button mapButton(@Nonnull EmulatorButton button) {
+        return switch (button) {
+            case UP -> Button.UP;
+            case DOWN -> Button.DOWN;
+            case LEFT -> Button.LEFT;
+            case RIGHT -> Button.RIGHT;
+            case A -> Button.A;
+            case B -> Button.B;
+            case SELECT -> Button.SELECT;
+            case START -> Button.START;
+            case L, R -> null; // GB doesn't have shoulder buttons
+        };
     }
 
     /**
@@ -152,7 +176,7 @@ public class HeadlessGameboy {
             Thread.currentThread().interrupt();
         } catch (Exception e) {
             if (running) {
-                LOGGER.atWarning().log("[VT] Emulator error: %s", e.getMessage());
+                LOGGER.atWarning().log("[VT] GB emulator error: %s", e.getMessage());
             }
         } finally {
             running = false;
