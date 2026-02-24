@@ -1,0 +1,30 @@
+[versions]
+# Hytale Server API - latest: https://maven.hytale.com/release/com/hypixel/hytale/Server/maven-metadata.xml
+hytale-server = "2026.02.19-1a311a592"
+jetbrains-annotations = "26.0.2-1"
+jspecify = "1.0.0"
+gson = "2.11.0"
+junit = "5.10.2"
+mockito = "5.11.0"
+assertj = "3.25.3"
+
+[libraries]
+hytale-server = { module = "com.hypixel.hytale:Server", version.ref = "hytale-server" }
+jetbrains-annotations = { module = "org.jetbrains:annotations", version.ref = "jetbrains-annotations" }
+jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+
+# Testing
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api" }
+junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine" }
+junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+mockito-junit = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
+assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+
+[bundles]
+
+[plugins]
