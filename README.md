@@ -13,7 +13,7 @@ A Hytale server mod that runs a Game Boy emulator and streams the display onto H
 
 3. Start the server. The plugin will create the following structure inside its data folder:
    ```
-   plugins/virtual-tale/
+   mods/VirtualTale_VirtualTale/
    ├── config.json
    ├── roms/          ← Place ROM files here (.gb, .gbc, .gba)
    ├── bios/          ← Place BIOS files here
