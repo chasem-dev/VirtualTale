@@ -1,6 +1,6 @@
 # VirtualTale
 
-A Hytale server mod that runs a Game Boy emulator and streams the display onto Hytale's world map. Each player gets their own emulator instance.
+A Hytale server mod that runs a Game Boy, Game Boy Color, and Game Boy Advance emulator and streams the display onto Hytale's world map. Each player gets their own emulator instance.
 
 
    <img width="1512" height="874" alt="Screenshot 2026-02-25 at 11 30 50 AM" src="https://github.com/user-attachments/assets/19e57276-4c81-448a-ad5c-03d79fca6a55" />
