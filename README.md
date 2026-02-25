@@ -2,17 +2,18 @@
 
 A Hytale server mod that runs a Game Boy emulator and streams the display onto Hytale's world map. Each player gets their own emulator instance.
 
+
+   <img width="1512" height="874" alt="Screenshot 2026-02-25 at 11 30 50 AM" src="https://github.com/user-attachments/assets/19e57276-4c81-448a-ad5c-03d79fca6a55" />
+   
+<img width="1512" height="874" alt="Screenshot 2026-02-25 at 11 30 34 AM" src="https://github.com/user-attachments/assets/7ac784d3-6311-4977-89f7-d3a6435dc62d" />
+
+
 ## Setup
 
 1. Build the mod:
    ```bash
    ./gradlew build
    ```
-
-   <img width="1512" height="874" alt="Screenshot 2026-02-25 at 11 30 50 AM" src="https://github.com/user-attachments/assets/19e57276-4c81-448a-ad5c-03d79fca6a55" />
-   
-<img width="1512" height="874" alt="Screenshot 2026-02-25 at 11 30 34 AM" src="https://github.com/user-attachments/assets/7ac784d3-6311-4977-89f7-d3a6435dc62d" />
-
 
 3. Copy `build/libs/VirtualTale-0.1.0-all.jar` to your `Server/mods/` directory.
 
