@@ -20,7 +20,7 @@ A Hytale mod that runs a Game Boy, Game Boy Color, and Game Boy Advance emulator
 
 3. Copy `build/libs/VirtualTale-0.1.0-all.jar` to your `Server/mods/` directory.
 
-4. Start the server. The plugin will create the following structure inside its data folder:
+4. Start the server or singleplayer world. The mod will create the following structure inside its data folder:
    ```
    mods/VirtualTale_VirtualTale/
    ├── config.json
