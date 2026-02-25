@@ -58,18 +58,26 @@ The ROM name can be the exact filename, the name without extension, or a case-in
 
 All controls work while the map screen (M key) is open.
 
-**D-pad (movement):** WASD keys. The server detects your movement direction, presses the corresponding Game Boy direction, and teleports you back to your anchor position.
+**D-pad:** WASD movement is detected server-side and translated to D-pad presses (player is teleported back to anchor).
 
-**Action buttons (hotbar):** Switch to hotbar slots 1-4 to press buttons:
+**Hotbar keys (1–8):** Press hotbar keys to trigger emulator buttons:
 
-| Hotbar Slot | Game Boy Button |
-|-------------|-----------------|
-| 1 | A |
-| 2 | B |
-| 3 | START |
-| 4 | SELECT |
+| Key | Button |
+|-----|--------|
+| 1 | UP |
+| 2 | DOWN |
+| 3 | LEFT |
+| 4 | RIGHT |
+| 5 | A |
+| 6 | B |
+| 7 | START |
+| 8 | SELECT |
 
-Buttons auto-release after 200ms (configurable).
+Buttons auto-release after a configurable hold duration (default 200ms). Repeated presses of the same key are debounced while the button is held.
+
+**Known issues:**
+- Spamming the same key too quickly can cause it to stop registering. The server resets your hotbar to a neutral slot after each press, but if you press the key again before that reset reaches the client, no new event is generated. Press a different key to unstick it.
+- The display may not render correctly on first start depending on your map zoom level. If this happens, stop the session (`/vt stop`), adjust your map zoom (try zooming out or in), then restart.
 
 ### Viewing the Display
 
