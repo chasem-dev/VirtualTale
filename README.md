@@ -3,7 +3,7 @@
 <a href="https://x.com/chasemdev"><img alt="" title="Download" src="https://camo.githubusercontent.com/e8b78ea70d0e398cf80839dfe0f18cf3fcb555b3cce43acf3936f761c2826b78/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f63686173656d6465762d2532333030303030302e7376673f7374796c653d666f722d7468652d6261646765266c6f676f3d58266c6f676f436f6c6f723d7768697465"/></a>
 
 
-A Hytale server mod that runs a Game Boy, Game Boy Color, and Game Boy Advance emulator and streams the display onto Hytale's world map. Each player gets their own emulator instance.
+A Hytale mod that runs a Game Boy, Game Boy Color, and Game Boy Advance emulator and streams the display onto Hytale's world map. Each player gets their own emulator instance.
 
 
    <img width="1512" height="874" alt="Screenshot 2026-02-25 at 11 30 50 AM" src="https://github.com/user-attachments/assets/19e57276-4c81-448a-ad5c-03d79fca6a55" />
