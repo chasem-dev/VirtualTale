@@ -39,17 +39,19 @@ A Hytale server mod that runs a Game Boy emulator and streams the display onto H
 
 | Command | Description |
 |---------|-------------|
-| `/vt start <rom>` | Start an emulator session with the given ROM |
+| `/vt start --rom=<file>` | Start an emulator session with the given ROM |
 | `/vt stop` | Stop your current session |
 | `/vt list` | Show all active sessions |
 | `/vt roms` | List available ROM files |
+| `/vt mapscale --rom=<n>` | Set display size 1–8 (default: 4) |
+| `/vt speed --rom=<1-8>` | Set emulator speed multiplier (default: 1x) |
 
 The ROM name can be the exact filename, the name without extension, or a case-insensitive prefix. For example, if you have `Tetris.gb`, any of these work:
 
 ```
-/vt start Tetris.gb
-/vt start Tetris
-/vt start tetris
+/vt start --rom=Tetris.gb
+/vt start --rom=Tetris
+/vt start --rom=tetris
 ```
 
 ### Controls
