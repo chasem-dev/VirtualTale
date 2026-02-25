@@ -114,3 +114,10 @@ Game Boy emulator (~60fps)
 ```
 
 The emulator runs on its own thread per player. A separate render thread samples the latest frame at the configured FPS, converts it to Hytale's ARGB map format, splits it into 32x32 map chunks, and only sends chunks that changed since the last frame.
+
+## Emulator Libraries
+
+This project uses two open-source Game Boy emulators running headlessly on the server:
+
+- [**coffee-gb**](https://github.com/trekawek/coffee-gb) — Game Boy / Game Boy Color emulator (`.gb`, `.gbc`)
+- [**BooYahGBA**](https://github.com/chasem-dev/BooYahGBA) — Game Boy Advance emulator (`.gba`)
