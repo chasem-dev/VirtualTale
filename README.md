@@ -88,6 +88,10 @@ Buttons auto-release after a configurable hold duration (default 200ms). Repeate
 - Spamming the same key too quickly can cause it to stop registering. The server resets your hotbar to a neutral slot after each press, but if you press the key again before that reset reaches the client, no new event is generated. Press a different key to unstick it.
 - The display may not render correctly on first start depending on your map zoom level. If this happens, stop the session (`/vt stop`), adjust your map zoom (try zooming out or in), then restart.
 
+### Saves
+
+Each player's save data is stored per-game, so multiple players can play the same ROM with independent progress. Saves persist across sessions and server restarts. Save files are located at `saves/<game>/<player-uuid>/<game>.sav`.
+
 ### Viewing the Display
 
 Open the world map with **M** after starting a session. The Game Boy's 160x144 display is rendered as a 5x5 grid of map chunks at the configured map origin.
