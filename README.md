@@ -11,9 +11,27 @@ A Hytale server mod that runs a Game Boy emulator and streams the display onto H
 
 2. Copy `build/libs/VirtualTale-0.1.0-all.jar` to your `Server/mods/` directory.
 
-3. Start the server. The plugin will generate a default config and a `roms/` directory inside its data folder on first run.
+3. Start the server. The plugin will create the following structure inside its data folder:
+   ```
+   plugins/virtual-tale/
+   ├── config.json
+   ├── roms/          ← Place ROM files here (.gb, .gbc, .gba)
+   ├── bios/          ← Place BIOS files here
+   │   └── gba_bios.bin   (required for GBA ROMs)
+   └── saves/         ← Per-player save files
+       └── <game>/<player-uuid>/<game>.sav
+   ```
 
-4. Place `.gb` or `.gbc` ROM files in the `roms/` directory that was created (located inside the plugin's data folder, next to `config.json`).
+4. Place your ROM files in `roms/` and (for GBA) place `gba_bios.bin` in `bios/`.
+
+## Gradle Tasks
+
+| Command | Description |
+|---------|-------------|
+| `./gradlew build` | Compile, test, and package the fat JAR (`build/libs/VirtualTale-*-all.jar`) |
+| `./gradlew runServer` | Build and launch a local Hytale server with the plugin installed |
+| `./gradlew test` | Run unit tests |
+| `./gradlew shadowJar` | Build the shadow JAR (dependencies merged) |
 
 ## Usage
 
@@ -72,7 +90,7 @@ The config file is at `Server/plugins/virtual-tale/config.json`:
 }
 ```
 
-ROMs go in the `roms/` subdirectory next to this config file (created automatically on startup).
+ROMs go in `roms/`, GBA BIOS goes in `bios/`, and save files are written to `saves/<game>/<player-uuid>/<game>.sav` (all directories are created automatically on startup).
 
 | Field | Description |
 |-------|-------------|

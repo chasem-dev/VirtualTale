@@ -87,11 +87,28 @@ public class VirtualTalePlugin extends JavaPlugin {
     }
 
     private void printBanner() {
-        LOGGER.atInfo().log("");
-        LOGGER.atInfo().log("╔══════════════════════════════════════════════════╗");
-        LOGGER.atInfo().log("║         VIRTUAL TALE - Game Boy / GBA on Map      ║");
-        LOGGER.atInfo().log("║           /vt start <rom> to play!               ║");
-        LOGGER.atInfo().log("╚══════════════════════════════════════════════════╝");
-        LOGGER.atInfo().log("");
+        String[] banner = {
+            "",
+            "    ┌─────────────────────────────────┐",
+            "    │  ┌─────────────────────────────┐ │",
+            "    │  │                             │ │",
+            "    │  │      V I R T U A L          │ │",
+            "    │  │        T A L E              │ │",
+            "    │  │                             │ │",
+            "    │  │      GB / GBA on Map        │ │",
+            "    │  └─────────────────────────────┘ │",
+            "    │          ___   ___               │",
+            "    │    +    | B | | A |              │",
+            "    │   +++   |___| |___|              │",
+            "    │    +                             │",
+            "    │      [SELECT] [START]            │",
+            "    │                                  │",
+            "    │    /vt start <rom> to play!      │",
+            "    └──────────────────────────────────┘",
+            ""
+        };
+        for (String line : banner) {
+            LOGGER.atInfo().log("[VT] %s", line);
+        }
     }
 }

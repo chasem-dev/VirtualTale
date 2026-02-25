@@ -8,12 +8,20 @@ import eu.rekawek.coffeegb.controller.ButtonReleaseEvent;
 import eu.rekawek.coffeegb.events.EventBus;
 import eu.rekawek.coffeegb.gpu.Display;
 import eu.rekawek.coffeegb.memory.cart.Cartridge;
+import eu.rekawek.coffeegb.memory.cart.CartridgeType;
+import eu.rekawek.coffeegb.memory.cart.battery.Battery;
+import eu.rekawek.coffeegb.memory.cart.battery.FileBattery;
 import eu.rekawek.coffeegb.serial.SerialEndpoint;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.util.Locale;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
  * Wraps coffee-gb's Gameboy class for headless (no-GUI) server-side use.
@@ -29,17 +37,21 @@ public class HeadlessGameboy implements EmulatorBackend {
 
     private final FrameBuffer frameBuffer;
     private final File romFile;
+    private final File saveFile;
 
     private Gameboy gameboy;
+    private Cartridge cartridge;
     private EventBus eventBus;
     private Thread emulatorThread;
     private volatile boolean running;
+    private volatile double speedMultiplier = 1.0;
 
     // Temporary buffer for converting frames
     private final int[] rgbBuffer = new int[DISPLAY_WIDTH * DISPLAY_HEIGHT];
 
-    public HeadlessGameboy(@Nonnull File romFile, @Nonnull FrameBuffer frameBuffer) {
+    public HeadlessGameboy(@Nonnull File romFile, @Nonnull File saveFile, @Nonnull FrameBuffer frameBuffer) {
         this.romFile = romFile;
+        this.saveFile = saveFile;
         this.frameBuffer = frameBuffer;
     }
 
@@ -61,7 +73,7 @@ public class HeadlessGameboy implements EmulatorBackend {
 
         LOGGER.atInfo().log("[VT] Loading ROM: %s", romFile.getName());
 
-        Cartridge cartridge = new Cartridge(romFile);
+        cartridge = createCartridgeWithSave(romFile, saveFile);
         gameboy = new Gameboy(cartridge);
         eventBus = new EventBus();
 
@@ -77,16 +89,28 @@ public class HeadlessGameboy implements EmulatorBackend {
         emulatorThread.setDaemon(true);
         emulatorThread.start();
 
-        LOGGER.atInfo().log("[VT] GB emulator started for ROM: %s", romFile.getName());
+        LOGGER.atInfo().log("[VT] GB emulator started for ROM: %s (save: %s)",
+                romFile.getName(),
+                saveFile.getAbsolutePath());
     }
 
     @Override
     public void stop() {
         running = false;
+        if (cartridge != null) {
+            try {
+                cartridge.flushBattery();
+            } catch (Exception e) {
+                LOGGER.atWarning().log("[VT] Failed to flush GB save for %s: %s",
+                        romFile.getName(),
+                        e.getMessage());
+            }
+        }
         if (gameboy != null) {
             gameboy.stop();
             gameboy = null;
         }
+        cartridge = null;
         if (emulatorThread != null) {
             emulatorThread.interrupt();
             try {
@@ -126,6 +150,16 @@ public class HeadlessGameboy implements EmulatorBackend {
         return romFile.getName();
     }
 
+    @Override
+    public void setSpeedMultiplier(double multiplier) {
+        this.speedMultiplier = Math.max(1.0, multiplier);
+    }
+
+    @Override
+    public double getSpeedMultiplier() {
+        return speedMultiplier;
+    }
+
     @Nullable
     private static Button mapButton(@Nonnull EmulatorButton button) {
         return switch (button) {
@@ -163,7 +197,8 @@ public class HeadlessGameboy implements EmulatorBackend {
 
                     // Wait until real-time catches up to emulated time
                     long elapsed = System.nanoTime() - frameStartNanos;
-                    long sleepNanos = FRAME_NANOS - elapsed;
+                    long targetNanos = (long) (FRAME_NANOS / speedMultiplier);
+                    long sleepNanos = targetNanos - elapsed;
                     if (sleepNanos > 1_000_000) { // >1ms worth of waiting
                         Thread.sleep(sleepNanos / 1_000_000, (int) (sleepNanos % 1_000_000));
                     }
@@ -191,5 +226,61 @@ public class HeadlessGameboy implements EmulatorBackend {
     private void onGbcFrame(Display.GbcFrameReadyEvent event) {
         event.toRgb(rgbBuffer);
         frameBuffer.submitFrame(rgbBuffer);
+    }
+
+    @Nonnull
+    private static Cartridge createCartridgeWithSave(@Nonnull File romFile, @Nonnull File saveFile) throws IOException {
+        byte[] romBytes = loadRomBytes(romFile);
+        Battery battery = createBatteryForRom(romBytes, saveFile);
+        return new Cartridge(romBytes, battery, Cartridge.GameboyType.AUTOMATIC, false);
+    }
+
+    @Nonnull
+    private static Battery createBatteryForRom(@Nonnull byte[] romBytes, @Nonnull File saveFile) {
+        CartridgeType type = CartridgeType.getById(romBytes[0x0147] & 0xFF);
+        if (!type.isBattery()) {
+            return Battery.NULL_BATTERY;
+        }
+
+        int ramBanks = getRamBanks(romBytes[0x0149] & 0xFF);
+        if (ramBanks == 0 && type.isRam()) {
+            ramBanks = 1;
+        }
+
+        return new FileBattery(saveFile, 0x2000 * ramBanks);
+    }
+
+    private static int getRamBanks(int id) {
+        return switch (id) {
+            case 0 -> 0;
+            case 1, 2 -> 1;
+            case 3 -> 4;
+            case 4 -> 16;
+            default -> throw new IllegalArgumentException("Unsupported RAM size: " + Integer.toHexString(id));
+        };
+    }
+
+    @Nonnull
+    private static byte[] loadRomBytes(@Nonnull File romFile) throws IOException {
+        String lowerName = romFile.getName().toLowerCase(Locale.ROOT);
+        if (!lowerName.endsWith(".zip")) {
+            return Files.readAllBytes(romFile.toPath());
+        }
+
+        try (InputStream inputStream = Files.newInputStream(romFile.toPath());
+             ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
+            ZipEntry entry;
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                if (entry.isDirectory()) {
+                    continue;
+                }
+                String entryName = entry.getName().toLowerCase(Locale.ROOT);
+                if (entryName.endsWith(".gb") || entryName.endsWith(".gbc") || entryName.endsWith(".rom")) {
+                    return zipInputStream.readAllBytes();
+                }
+            }
+        }
+
+        throw new IOException("Can't find ROM file inside zip: " + romFile.getName());
     }
 }

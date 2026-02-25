@@ -65,11 +65,12 @@ public class EmulatorSessionManager {
 
         // Create the appropriate backend
         EmulatorBackend backend;
+        File saveDir = resolveSaveDir(romFile, playerId);
         switch (romType) {
-            case GAMEBOY -> backend = new HeadlessGameboy(romFile, frameBuffer);
+            case GAMEBOY -> backend = new HeadlessGameboy(romFile, new File(saveDir, getFileBaseName(romFile.getName()) + ".sav"), frameBuffer);
             case GBA -> {
                 File biosFile = config.getGbaBiosFile();
-                backend = new HeadlessGba(romFile, biosFile, frameBuffer);
+                backend = new HeadlessGba(romFile, biosFile, saveDir, frameBuffer);
             }
             default -> throw new IOException("Unsupported ROM type: " + romType);
         }
@@ -189,5 +190,24 @@ public class EmulatorSessionManager {
         }
 
         return null;
+    }
+
+    @Nonnull
+    private File resolveSaveDir(@Nonnull File romFile, @Nonnull UUID playerId) throws IOException {
+        String gameName = getFileBaseName(romFile.getName());
+        Path saveDirectory = Path.of(config.getSavesDirectory())
+                .resolve(gameName)
+                .resolve(playerId.toString());
+        Files.createDirectories(saveDirectory);
+        return saveDirectory.toFile();
+    }
+
+    @Nonnull
+    private static String getFileBaseName(@Nonnull String filename) {
+        int dotIndex = filename.lastIndexOf('.');
+        if (dotIndex <= 0) {
+            return filename;
+        }
+        return filename.substring(0, dotIndex);
     }
 }

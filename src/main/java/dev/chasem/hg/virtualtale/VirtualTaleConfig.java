@@ -29,7 +29,8 @@ public class VirtualTaleConfig {
 
     private transient Path configPath;
     private transient Path romDirectory;
-    private transient Path gbaDirectory;
+    private transient Path biosDirectory;
+    private transient Path savesDirectory;
 
     public static VirtualTaleConfig load(@Nonnull Path dataDirectory) {
         Path path = dataDirectory.resolve("config.json");
@@ -49,12 +50,14 @@ public class VirtualTaleConfig {
         }
         config.configPath = path;
         config.romDirectory = dataDirectory.resolve("roms");
-        config.gbaDirectory = dataDirectory.resolve("gba");
+        config.biosDirectory = dataDirectory.resolve("bios");
+        config.savesDirectory = dataDirectory.resolve("saves");
 
         // Ensure directories exist
         try {
             Files.createDirectories(config.romDirectory);
-            Files.createDirectories(config.gbaDirectory);
+            Files.createDirectories(config.biosDirectory);
+            Files.createDirectories(config.savesDirectory);
         } catch (IOException e) {
             LOGGER.atWarning().log("[VT] Failed to create directories: %s", e.getMessage());
         }
@@ -74,6 +77,7 @@ public class VirtualTaleConfig {
     }
 
     public String getRomDirectory() { return romDirectory.toString(); }
+    public String getSavesDirectory() { return savesDirectory.toString(); }
     public int getMapOriginChunkX() { return mapOriginChunkX; }
     public int getMapOriginChunkZ() { return mapOriginChunkZ; }
     public int getRenderFps() { return renderFps; }
@@ -87,9 +91,9 @@ public class VirtualTaleConfig {
 
     /**
      * Returns the expected GBA BIOS file location.
-     * The BIOS should be placed at {@code <dataDir>/gba/gba_bios.bin}.
+     * The BIOS should be placed at {@code <dataDir>/bios/gba_bios.bin}.
      */
     public java.io.File getGbaBiosFile() {
-        return gbaDirectory.resolve("gba_bios.bin").toFile();
+        return biosDirectory.resolve("gba_bios.bin").toFile();
     }
 }

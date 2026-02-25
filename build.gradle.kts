@@ -2,7 +2,7 @@ import org.gradle.api.file.DuplicatesStrategy
 
 plugins {
     `maven-publish`
-    idea
+    id("com.gradleup.shadow") version "9.3.1"
     id("hytale-mod") version "0.+"
 }
 
@@ -135,9 +135,13 @@ publishing {
     }
 }
 
-idea {
-    module {
-        isDownloadSources = true
-        isDownloadJavadoc = true
-    }
+hytale {
+    // Use pre-release patchline
+    updateChannel.set("pre-release")
+
+    // Add `--allow-op` to server args (allows you to run `/op self` in-game)
+    allowOp.set(true)
+
+    // Disable Sentry error reporting
+    disableSentry.set(true)
 }

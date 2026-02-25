@@ -31,4 +31,10 @@ public interface EmulatorBackend {
 
     @Nonnull
     String getRomName();
+
+    /** Sets the speed multiplier (1.0 = normal, 2.0 = double speed, etc.). */
+    void setSpeedMultiplier(double multiplier);
+
+    /** Returns the current speed multiplier. */
+    double getSpeedMultiplier();
 }

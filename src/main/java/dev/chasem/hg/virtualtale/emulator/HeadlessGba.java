@@ -31,18 +31,22 @@ public class HeadlessGba implements EmulatorBackend {
 
     private final File romFile;
     private final File biosFile;
+    private final File saveDir;
     private final FrameBuffer frameBuffer;
 
     private Agent agent;
     private Thread emulatorThread;
     private volatile boolean running;
+    private volatile double speedMultiplier = 1.0;
 
     // Reusable buffer to avoid per-frame allocation
     private final int[] pixelBuffer = new int[PIXEL_COUNT];
 
-    public HeadlessGba(@Nonnull File romFile, @Nonnull File biosFile, @Nonnull FrameBuffer frameBuffer) {
+    public HeadlessGba(@Nonnull File romFile, @Nonnull File biosFile,
+                       @Nonnull File saveDir, @Nonnull FrameBuffer frameBuffer) {
         this.romFile = romFile;
         this.biosFile = biosFile;
+        this.saveDir = saveDir;
         this.frameBuffer = frameBuffer;
     }
 
@@ -64,19 +68,22 @@ public class HeadlessGba implements EmulatorBackend {
 
         if (!biosFile.exists()) {
             throw new IOException("GBA BIOS not found: " + biosFile.getAbsolutePath()
-                    + ". Place gba_bios.bin in the plugin data directory under gba/.");
+                    + ". Place gba_bios.bin in the plugin data directory under bios/.");
         }
 
         LOGGER.atInfo().log("[VT] Loading GBA ROM: %s (BIOS: %s)", romFile.getName(), biosFile.getName());
 
         agent = new Agent(biosFile.getAbsolutePath(), romFile.getAbsolutePath());
+        agent.setupSavePersistence(saveDir, romFile.getName());
 
         running = true;
         emulatorThread = new Thread(this::runLoop, "VirtualTale-GBA-" + romFile.getName());
         emulatorThread.setDaemon(true);
         emulatorThread.start();
 
-        LOGGER.atInfo().log("[VT] GBA emulator started for ROM: %s", romFile.getName());
+        LOGGER.atInfo().log("[VT] GBA emulator started for ROM: %s (saveDir: %s)",
+                romFile.getName(),
+                saveDir.getAbsolutePath());
     }
 
     @Override
@@ -124,6 +131,16 @@ public class HeadlessGba implements EmulatorBackend {
         return romFile.getName();
     }
 
+    @Override
+    public void setSpeedMultiplier(double multiplier) {
+        this.speedMultiplier = Math.max(1.0, multiplier);
+    }
+
+    @Override
+    public double getSpeedMultiplier() {
+        return speedMultiplier;
+    }
+
     private static int mapButton(@Nonnull EmulatorButton button) {
         return switch (button) {
             case A -> IORegMemory.BTN_A;
@@ -154,7 +171,8 @@ public class HeadlessGba implements EmulatorBackend {
 
                 // Frame pacing
                 long elapsed = System.nanoTime() - frameStart;
-                long sleepNanos = FRAME_NANOS - elapsed;
+                long targetNanos = (long) (FRAME_NANOS / speedMultiplier);
+                long sleepNanos = targetNanos - elapsed;
                 if (sleepNanos > 1_000_000) {
                     Thread.sleep(sleepNanos / 1_000_000, (int) (sleepNanos % 1_000_000));
                 }
@@ -169,4 +187,5 @@ public class HeadlessGba implements EmulatorBackend {
             running = false;
         }
     }
+
 }
